@@ -23,4 +23,8 @@ class Bottles
       "#{number-1} bottles of beer on the wall.\n"
     end
   end
+
+  def verses(_, _)
+    verse(99) + "\n" + verse(98)
+  end
 end
