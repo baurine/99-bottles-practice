@@ -2,7 +2,7 @@ class Bottles
   def verse(number)
     case number
     when 0
-      "no more bottles of beer on the wall, " +
+      "No more bottles of beer on the wall, " +
       "no more bottles of beer.\n" +
       "Go to the store and buy some more, " +
       "99 bottles of beer on the wall.\n"
@@ -24,7 +24,7 @@ class Bottles
     end
   end
 
-  def verses(_, _)
-    verse(99) + "\n" + verse(98)
+  def verses(starting, ending)
+    starting.downto(ending).map { |i| verse(i) }.join("\n")
   end
 end
