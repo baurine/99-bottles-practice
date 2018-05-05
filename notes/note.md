@@ -85,3 +85,116 @@ beer 是 beer，人们不会这么说，人们会说 beer 是一种可以喝的�
 ### 1.3. Summary
 
 宁可要一点点重复，也不要错误的抽象。
+
+## 2. Test Driving Shameless Green
+
+### 2.1. Understanding Testing
+
+TDD 的流程：
+
+1. Write a test
+1. Make it run
+1. Make it right
+
+即 Red/Green/Refactor。
+
+### 2.2. Writing the Frist Test
+
+"don't overthink it"，不要过度思考，意思大概是说先不要过早优化吧。
+
+一个 test 的三部分：
+
+1. Setup
+1. Do
+1. Verify
+
+### 2.3. Removing Duplication
+
+去除了 if 的使用。略。
+
+### 2.4. Understanding Transformations
+
+变形 (?) - 一种改变代码行为的简单操作，由 Martin 所定义。
+
+constant -> scalar ("replacing a constant with a variable or an argument")，这种变形排第四优先级。
+
+unconditional -> if ("splitting the execution path")，这种变形排第六优先级。
+
+在 2.3. 示例了，我们对 `verse(num)` 方法先后采用了加 if，使用插值的变形。
+
+### 2.5. Tolerating Duplication
+
+为了更好地理解，允许容忍少量的重复。过度的抽象，会增加理解代码的难度。
+
+### 2.6. Hewing to the Plan
+
+在 `verse(num)` 方法中，当条件增加时，用 case 替代 if。
+
+这里说道，case 和 if...elsif 隐含的意义是不一样的。使用 case 对读者更友好。
+
+### 2.7. Exposing Responsibilities
+
+考虑 `verses(a, b)` 方法的实现，内部应该用 `verse(num)` 来实现它。
+
+Green Bar Patterns:
+
+1. Fake it ("Til You Make It")
+1. Obvious Implementation
+1. Triangualte
+
+### 2.8. Choosing Names
+
+将 `verses(a, b)` 重命名成 `verses(starting, ending)`，使参数意义更明确。
+
+增加方法 `song`
+
+    def song
+      verses(99, 0)
+    end
+
+为什么给 Bottles 增加一个 `song` 的方法，而不是直接使用它的 `verses(99, 0)` 方法呢，因为后者需要调用者知道太多信息：
+
+1. 方法的名字 verses
+1. 它需要两个参数
+1. 第一个参数表示起始数
+1. 第二个参数表示结束数
+1. 起始数是 99
+1. 结束数是 0
+
+
+### 2.9. Revealing Intentions
+
+diffference between intention and implementation.
+
+此例中，`song` 方法是 intention，`verses(99, 0)` 是 implementation。implementation 是真正的实现，是 detail。
+
+到目前为止，`song` 还没有测试，违反了 TDD。
+
+### 2.10. Writing Cost-Effective Tests
+
+大概意思是说，测试和代码不能太耦合。下面的小节会来继续说这个问题。
+
+### 2.11. Avoiding the Echo-Chamber
+
+为 `song` 方法写测试，第一个版本
+
+    def test_the_whole_song
+      bottles = Bottles.new
+      assert_equal bottles.verses(99, 0), bottles.song
+    end
+
+用方法自己的实现来测试自己，这是一种错误的测试方法，也是上小节所说的，测试和实现代码耦合的现象。
+
+测试代码的输出，不能依赖于代码自身的实现，不然这就形成了耦合。测试代码的输出必须是 hard-code 的。
+
+song 方法的测试，不应该去知道 song 内部具体是怎么去实现的。
+
+在代码实现中去做 DRY，但不要在测试中做 DRY。
+
+### 2.12. Considering Options
+
+> DIR is a very good idea in code, but much less useful in tests. When testing, the best choice is very often just to write it down.
+
+### 2.13. Summary
+
+测试，做得好的话，可以加速你的开发效率和降低开发成本，但是，如果错误的测试，则起到相反的作用。
