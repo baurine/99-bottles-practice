@@ -198,3 +198,124 @@ song 方法的测试，不应该去知道 song 内部具体是怎么去实现的
 ### 2.13. Summary
 
 测试，做得好的话，可以加速你的开发效率和降低开发成本，但是，如果错误的测试，则起到相反的作用。
+
+## 3. Unearthing Concepts
+
+新需求，将 "6 bottles" 改成 "1 six-pack"。
+
+### 3.1. Listening to Change
+
+> The most cost-effective code is as good as necessary, but no better.
+
+不要过早优化，那样会消耗你宝贵的时间。
+
+最好是随着需求变化，逐步地优化你的代码。
+
+我们还按照 Shameless Green Solution 的思路来改造代码，以满足 "1 six-pack" 的需求，但这时候，会发现，在 `verse(num)` 方法中，重复的东西实在是太多了，已经达到了不可接受的地步。
+
+### 3.2. Starting With the Open/Closed Principle
+
+设计模式的几个原则：SOLID
+
+- S - Single Responsibility
+- O - Open/Closed. Open to extension, closed to modification
+- L - Liskov Subsitution. Subclass should be subsitutable for their superclass
+- I - Interface Segregation. Objects should not be forced to depend on methods they don't use.
+- D - Dependency Inversion. Depend on abstraction, not on concretions.
+
+后面三个基本讲的差不多是一个事情，依赖抽象而不是具体。
+
+### 3.3. Recognizing Code Smells
+
+Code Smells - 不好的代码。
+
+### 3.4. Identifying the Best Point of Attack
+
+找到改造代码的最好入手点，此例中，无疑是 `verse(num)` 方法的 `case` 表达式，在此处包含了很多重复。
+
+### 3.5. Refactoring Systematically
+
+> Refactoring is the process of changing a software system in such a way that it doesn't alter the external behavior of the code yet improves its internal structure.
+
+重构步骤：
+
+- First, you rearrange existing code so that it becomes open to the new requirement.
+- Next, you write new code to meet that requirement.
+
+第一步就叫重构。
+
+每重构一步，就跑一次测试，以保证你的重构没有破坏 external behavior。
+
+### 3.6. Following the Flocking Rules
+
+Flocking - 鸟群
+
+Flocking Rules:
+
+1. Select the things that are most alike
+1. Find the smallest difference between them
+1. Make the simplest change that will remove the difference
+
+### 3.7. Covering on Abstraction
+
+利用 Flocking Rules 去改造 `verse(num)` 方法，使之减少重复，更抽象。
+
+#### 3.7.1. Focusing on Difference
+
+> Diffrerence represents a smaller abstraction within the larger one. If you can name the difference, you've identified that smaller abstraction.
+
+在 `verse(num)` 方法中，`case 2` 和 `else` 逻辑是相同的，仅仅的区别是 `bottle` 和 `bottles` 一处。
+
+#### 3.7.2. Simplifying Hard Problems
+
+修改 `case 2` 的逻辑，去掉 hard-code，最终它与 `else` 的不同就只有一处了。
+
+    when 2
+      # ...
+      "#{number - 1} bottle of beer on the wall.\n"
+    else
+      # ...
+      "#{number - 1} bottles of beer on the wall.\n"
+    end
+
+#### 3.7.3. Naming Concepts
+
+"bottle / bottles"，表面上看，它们表示 bottle 的单复数形式，但它们真正的意义并不是 "pluralization"。
+
+所以，下面的抽象是不对的。
+
+    def pluralization(number)
+      if number == 1
+        'bottle'
+      else
+        'bottles'
+      end
+    end
+
+更何况，当 number 为 6 时，后面跟的应该是 six-pack，即不是 bottle，也不是 bottles。
+
+所以，把 bottle/bottles/six-pack，更应该理解是某种单位，在这里，理解成容器 container 更合适。
+
+#### 3.7.4. Making Methodical Transformations
+
+这一小节主要想表达的是，重构时，最好一小步一小步来，最好是改一行就重新测试一下，没有错误后再继续。不要一下子同时重构太多。(步子迈得太大，容易扯着蛋...)
+
+呵呵，这也太谨慎了吧... (我有点不能接受)
+
+#### 3.7.5. Refactoring Gradually
+
+这一小节逐步演示重构的过程，`container(num)` 方法是如何一步一步形成的。
+
+最后的版本：
+
+    def container(num)
+      if num == 1
+        'bottle'
+      else
+        'bottles'
+      end
+    end
+
+### 3.8. Summary
+
+这一章，并没有实际解决 six-pack 的问题，只是准备阶段，为了满足 six-pack 的需求，需要把原来的代码重构成 open to external。
