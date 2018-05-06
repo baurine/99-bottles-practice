@@ -319,3 +319,120 @@ Flocking Rules:
 ### 3.8. Summary
 
 这一章，并没有实际解决 six-pack 的问题，只是准备阶段，为了满足 six-pack 的需求，需要把原来的代码重构成 open to external。
+
+## 4. Practicing Horizontal Refactoring
+
+这一小节继续使用 Flocking Rules 来改进代码。
+
+### 4.1. Replacing Difference with Sameness
+
+处理 `when 0` 和 `when 1` 的情况。
+
+把 `1 bottle` 和 `n bottles` 统一优化成 `"#{number} #{container(number)}"`
+
+### 4.2. Equivocating About Names
+
+处理 `it` 和 `one` 的情况。
+
+> when concepts are fuzzier, finding a good name can be much harder.
+
+取名就是一个相当大的难题。
+
+本小节提供一些取名的建议。
+
+> Names should neither be too general nor too specific. For example, `thing` is too broad, and `it_or_one` too narrow.
+
+如果你问顾客会怎么来称呼 `it` 或 `one` 在这里表明的含义，他们会把它称为 `pronoun`，但似乎用 `pronoun` 有点太 general 了，如果要再具体一些，可以称之为 `thing_drunk`，但 `thing_drunk` 有点不可接受... 所以这里没有一个完美的名字。
+
+当遇到这种情况时，有三种策略：
+
+1. 一些人会徘徊几分钟，然后选择一个你觉得 good enough 的名字，之后想到更好的名字后再优化
+1. 一些人会快速地选择一个毫无意义的名字，比如 foo, namethis, tmp 等，来快速地推进，继续往前。"You will never know less than you know right now."
+1. 寻求别人的帮助，问问别人有什么好的主意。
+
+在这里，`pronoun` 是一个 good enough 的选择，我们先暂时用着这个，之后如果想到更好的名字再来优化。
+
+    def pronoun(number)
+      if number == 1
+        'it'
+      else
+        'one'
+      end
+    end
+
+### 4.3. Deriving Names From Responsibilities
+
+处理 `no more` 的情况。
+
+'99' '50' '1' 'no more' 代表 quantity。所以可以定义一个 quantity 的方法。
+
+### 4.4. Choosing Meaningful Defaults
+
+用 `:FIXME` 作为参数的默认值，用来提醒用户这个地方后面还需要再修改。
+
+    def quantity(number)
+      if number == 0
+        'no more'
+      else
+        number
+      end
+    end
+
+如此重构后，统一了 `when 1` 和 `else` 的逻辑，只剩下 `when 0` 了。
+
+### 4.5. Seeking Stable Landing Points
+
+截止目前为止，新增加的三个方法，`quantity(num)`, `pronoun(num)`, `container(num)`，它们都符合单一职责，逻辑也相似，具有 consistency。
+
+### 4.6. Obeying the Liskov Substitution Priciple
+
+继续重构，找不同。
+
+"No more" 与 "no more"，代表的意义是一样的，只是一个因为在句首，要大写，另一个在句中，不需要。
+
+不需要一个特别的方法来区分它们，只需要当它在句首时，对它调用 `.capitalize` 来大写首字母。
+
+但有一个问题，在 `quantity(num)` 方法的 else 分支中，返回的是数值型的 number，并不是字符串，没有 capitalize 方法。
+
+修改 `quantity(num)` 方法，在 else 分支中使用 `number.to_s`，使该方法统一返回 string 类型。
+
+### 4.7. Taking Bigger Steps
+
+抽象出 `action(number)` 方法。
+
+    def action(number)
+      if number == 0
+        'Go to the store and buy some more'
+      else
+        "Take #{pronoun(number)} down and pass it around"
+      end
+    end
+
+### 4.8. Discovering Deeper Abstractions
+
+解决在 `when 0` 中 `99` 代表的意义。从而抽象出了 `successor(num)` 方法。
+
+    def successor(number)
+      if number == 0
+        99
+      else
+        number - 1
+      end
+    end
+
+### 4.9. Depending on Abstractions
+
+最终的 `verse(num)`：
+
+    def verse(number)
+      "#{quantity(number).capitalize} #{container(number)} of beer on the wall, " +
+      "#{quantity(number)} #{container(number)} of beer.\n" +
+      "#{action(number)}, " +
+      "#{quantity(successor(number))} #{container(successor(number))} of beer on the wall.\n"
+    end
+
+消除了所有的 conditional statements.
+
+### 4.10. Summary
+
+只要遵循相同的原则，不同是程序员进行重构，最终也能得到相同的结构，只不过方法的名字可能不一样。
