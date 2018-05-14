@@ -436,3 +436,107 @@ Flocking Rules:
 ### 4.10. Summary
 
 只要遵循相同的原则，不同是程序员进行重构，最终也能得到相同的结构，只不过方法的名字可能不一样。
+
+## 5. Separating Responsibilities
+
+前两小节使用 Flocking Rules 减少了 `verse` 方法的重复内容。
+
+接下来回到 six-pack 的问题上来，到目前为止，我们还没有实现代码的 open。
+
+注：当一开始我看到作者将 container, quantity 等方法抽象到一个 BottlesNumber 的类中是，我觉得有点过度抽象，但看完整章后，我觉得这个抽象是很有道理的。
+
+### 5.1. Selecting the Target Code Smell
+
+#### 5.1.1. Identifying Patterns in Code
+
+通过回答一些问题，来找出代码中的一些模式。
+
+1. 哪些方法有相同的形状？
+1. 哪些方法接受相同名字的参数？
+1. 这些相同名字的参数是否代表相同的意义？
+1. 如果你要给这个类添加一个 private，你会放在哪？
+1. 如果要把这个类分成两块，你会从哪行把它分开？
+1. ...
+
+#### 5.1.2. Spotting Common Qualities
+
+回答以上问题。`container(num)` `quantity(num)` `action(num)` `pronoun(num)` `successor(num)` 具有相同形状，相同参数名，参数名代表相同意义。...
+
+`verse(num)` 中的参数 num 与上述方法参数，虽然同名，但代表的意义却不相同。
+
+### 5.2. Extracting Classes
+
+#### 5.2.1. Modeling Abstracting
+
+将上述五个方法，抽象到 BottlesNumber 类中，这个类并不代表实际的物体，而是表示概念。
+
+#### 5.2.2. Naming Classes
+
+是叫 BottlesNumber 好，还是 ContainerNumber 好，前者更具体一些，后者更抽象，更 general 一些。
+
+在前面命名方法时，我们举了一个例子，用 `beverage` 替代了 `beer`，前者更抽象，后者更具体。那在这里，我们是不是也应该用 ContainerNumber，而不是 BottlesNumber 呢，并不是的。
+
+修正后的命名原则：
+
+> while you should continue to name methods after what they mean, classes can be named after what they are.
+
+为类命名，应该具体化，为方法命名，可以更抽象化。
+
+#### 5.2.3. Extracting BottleNumber
+
+为抽象出 BottleNumber 时，发现我们并没有遵循 TDD 的原则，先写测试，再写实现。这是因为，Bottles 的实现依赖于 BottleNumber，我们已经为 Bottles 写了测试了。
+
+重构的步骤：
+
+1. parse the new code
+1. parse and execute it
+1. parse, execute and use its result
+1. delete the unused code
+
+接下来讲解如何一步一步实现 BottleNumber，详略，说实话，讲得太啰嗦了...
+
+最终的实现：
+
+    class BottleNumber
+      attr_reader :number
+      def initialize(number)
+        @number = number
+      end
+
+      def container
+        if number == 1
+          'bottle'
+        else
+          'bottles'
+        end
+      end
+
+      def quantity
+        if number == 0
+          'no more'
+        else
+          numbrer.to_s
+        end
+      end
+
+      ...
+
+      def successor
+        if number == 0
+          99
+        else
+          number - 1
+        end
+      end
+
+      ...
+
+### 5.6. Recognizing Liskov Violations
+
+    class Bottles
+      ...
+
+      def verse(number)
+        bottle_number = BottleNumber(number)
+        next_bottle_number = BottleNumber.new(bottle_number.successor)
+        ...
