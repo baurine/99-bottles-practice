@@ -540,3 +540,237 @@ Flocking Rules:
         bottle_number = BottleNumber(number)
         next_bottle_number = BottleNumber.new(bottle_number.successor)
         ...
+
+## 6. Achieving Openness
+
+经过前面五章的铺垫，抽象出了 BottleNumber class 后，我们终于使其有了 Open 的基础了。
+
+### 6.1 Consolidating Data Clumps
+
+`"#{bottle_number.quantity} #{bottle_number.container}` 这样的组合在 `verse` 方法中重复了 3 次，这让我们闻到了一些 code smell，被称之为 Data Clump code smell。
+
+如果几个东西总是同时出现，这意味着它们可能有一些深层的意义，而我们应该对这个意义进行命名。
+
+我们可以对上面这个组合进行一个单独的命名，但在 Ruby 中，每个对象都有一个 `to_s` 的方法，而且它不用显式地被调用，在插值表达式中的对象，会自动调用 `to_s` 方法。
+
+因此，我们为 BottleNubmer 重写 `to_s` 方法：
+
+    def to_s
+      "#{quantity} #{container}"
+    end
+
+(但是，`to_s` 不能滥用)
+
+新的 `verse` 方法：
+
+    def verse(number)
+      bottle_number = BottleNumber(number)
+      next_bottle_number = BottleNumber.new(bottle_number.successor)
+
+      "#{bottle_number} of beer on the wall, ".capitalize +
+      "#{bottle_number} of beer.\n" +
+      "#{bottle_number.action}, " +
+      "#{next_bottle_number} of beer on the wall.\n"
+    end
+
+有一个小细节的地方是，把 `.capitalize` 的调用挪到了句子的最后，这样也确实更 make sense。
+
+nice! 又简洁了很多。
+
+### 6.2 Making Sense of Conditionals
+
+接下来来解决 BottleNumber 中每个方法中的条件语句。
+
+通常有两种方法来替换条件：
+
+1. 策略模式，使用组合
+1. 多态，使用继承，实现子类
+
+这里，我们使用多态更合适。
+
+### 6.3. Replacing Conditionals with Polymorphism
+
+多态的意义：不同的对象去响应相同的消息，消息发送者不用关心具体的接收者是谁，只关心它们接收到消息后做什么。
+
+#### 6.3.1. Dismembering Conditionals
+
+在 BottleNumber 中每一个方法中的条件句中，都有一个 special case 和一个 common case，我们把 special case 抽取出来，让它们交给相应的子类来实现，BottleNumber 只处理最常见的 common case，
+
+special case 中有 number 等于 0 和 1 两种情况，因此我们从 BottleNumber 继承两个子类 BottleNumber0 和 BottleNumber1。
+
+    class BottleNumber
+      def quantity
+        number.to_s
+      end
+
+      def container
+        "bottles"
+      end
+      ...
+    end
+
+    class BottleNumber0 < BottleNumber
+      def quantity
+        "no more"
+      end
+      ...
+    end
+
+    class BottleNumber1 < BottleNumber
+      def container
+        "bottle"
+      end
+      ...
+    end
+
+#### 6.3.2. Manufacturing Objects
+
+抽象 BottleNumber，BottleNumber0，BottleNumber1 这些类后，面临一个新的问题，我们需要根据 number 的值还选择创建 BottleNumber0，BottleNumber1 还是 BottleNumber 类的实例对象。
+
+这种情况就是工厂方法最适合的地方了。
+
+我们在 Bottles 类中定义一个 `bottle_number_for(number)` 的工厂方法：
+
+    def bottle_number_for(number)
+      if number == 0
+        BottleNumber0
+      else
+        BottleNumber
+      end.new(number)
+    end
+
+(又学到了 Ruby 的一种新魔法)
+
+(话说 `bottle_number_for(number)` 这样的方法命名怎么有种 ObjectC/Swift 的感觉呢)
+
+如果再加上 BottleNumber1，这时有三个分支了，我们改用 case。
+
+    def bottle_number_for(number)
+      case number
+      when 0
+        BottleNumber0
+      when 1
+        BottleNumber1
+      else
+        BottleNumber
+      end.new(number)
+    end
+
+#### 6.3.4. Making Peace With Conditionals
+
+通过上述一步步的重构，我们发现，最原始的 Shameless 版本的 `verse` 方法中，条件分支有 4 个 (case 0,1,2 and else)，而 `bottle_number_for` 中只有 3 个 (case 0,1 and else)。
+
+减少的那一个到哪去了呢，为什么能减少呢。这是因为，在 Shameless 版本的 `verse` 方法中，number 表示 verse number，2 是一个 special case，但 2 对于 bottle number 来说，它并不是一个 specail case。
+
+### 6.4. Transitioning Between Types
+
+这一小节略有些不明白，我理解 successor 的优化，但不明白它为什么违背的是里氏替换原则。
+
+现在，BottleNumber 的 successor 方法，返回的是一个 number，我们还需要自己再去用这这个得到的值 new 一个 BottleNumber，但实际我们更希望直接得到一个新的 BottleNumber 对象，而不是数字。
+
+每一个用到 successor 方法的地方，都必须了解这个返回值是一个数字，我们还需要把它包装成 BottleNumber 对象。这增加了依赖和重复。
+
+如果 successor 直接返回我们想要的 BottleNumber 对象，那么就减少了依赖和重复，完美。
+
+如果要实现 successor 直接返回 BottleNumber 对象，那必须要用到生成 BottleNumber 对象的工厂方法 `bottle_number_for`，但此时，工厂方法在 BottleNumber 之外的 Bottles 类中。我们需要它这个工厂方法挪到 BottleNumber 类中，成为它的静态方法。
+
+此时，这个工厂方法如果还叫 `bottle_number_for`，即全称 `BottleNumber.bottle_number_for`，那就显示冗余了。每个对象都有 `to_s` 方法，但我们不会为 String 类取名 `string_to_s`，为 Hash 类取名 `hash_to_s`。
+
+我们把这个方法简化为 `for(number)`。
+
+    class BottleNumber
+      def self.for(number)
+        ...
+      end
+      ...
+
+      def successor
+        BottleNumber.for(number-1)
+      end
+    end
+
+判断某个对象是否属于某个类的实例，可以用 `kind_of?` 方法：
+
+    bottle_number.kind_of?(BottleNumber)
+
+尽量使你的设计遵循里氏替换原则。
+
+### 6.5. Making the Easy Change
+
+终于，我们可以很方便地来实现 1 six-pack 的需求了。现在 BottleNumber 已经是对外 open 了，我们只要继续它，实现 BottleNumber6 即可。
+
+    class BottleNumber6 < BottleNumber
+      def quantity
+        "1"
+      end
+
+      def container
+        "six-pack"
+      end
+    end
+
+但些是工厂方法还不是 open 的，所以我们修改工厂方法，在 number 等于 6 时，产生 BottleNumber6 对象：
+
+    class BottlerNubmer
+      def self.for(number)
+        case number
+        when 0
+          BottleNumber0
+        when 1
+          BottleNubmer1
+        when 6
+          BottleNumber6
+        else
+          BottleNumber
+        end.new(number)
+      end
+      ...
+
+> make the change easy (warning: this may be hard), then make the easy change.
+
+### 6.6. Defending the Domain
+
+如果仅仅是为了通过测试，我们可以这样来实现 BottleNumber6：
+
+    class BottleNumber6 < BottleNumber
+      def to_s
+        "1 six-pack"
+      end
+    end
+
+虽然一样达到了效果，但这种实现是不好的，它破坏了这个方法的 underlying concept，使用 quantity 和 container 方法在这个类中也失去了意义。
+
+所以，不要这么做。
+
+### 6.7. Prying Open the Factory
+
+前面说到，工厂方法还不是 open 的，如果我们想产生一个新的类型的对象，必须修改工厂方法。
+
+让工厂方法 open 有一些手段 (策略模式?)
+
+在这个例子中，我们可以使用 Ruby 的元编程来实现，BottleNumber0, BottleNumber1, BottleNumber6 这些类名有一定的规律。
+
+    class BottleNumber
+      def self.for(number)
+        begin
+          const_get("BottleNumber#{number}")
+        rescue NameError
+          BottleNumber
+        end.new(nubmer)
+      end
+      ...
+
+虽然现在这个工厂方法 open 了，添加新的类型不再需要修改这个方法，但也带来了一些缺点：
+
+1. 代码更难懂了
+1. BotterNumber0, BotterNumber1, BotterNumber6 在代码中不再明显了，导致的结果有可能是，程序员全局搜索 BotterNumber0，发现没有地方使用它，就把 BottleNumber0 的实现删掉了
+1. 使用了不推荐的异常控制流程 (不推荐吗?)
+1. 如果新的类型的名字不再遵循 "BottleNumber#{number}" 的规律，那么这个实现就还是需要再次修改。
+
+所以，实现工厂方法到底有没有 Open 的必须，取决于实际情况。如果以后不会再增加新的类型或极少增加，那么工厂方法就没有 Open 的必要性。
+
+### 6.8. Summary
+
+略。
+
+最后的代码是如此简洁优雅，这就是代码之美！
